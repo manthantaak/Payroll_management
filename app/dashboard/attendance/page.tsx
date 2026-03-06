@@ -135,11 +135,7 @@ export default function AttendancePage() {
                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                   Hours Worked
                 </th>
-                {isAdmin && (
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                    Actions
-                  </th>
-                )}
+
               </tr>
             </thead>
             <tbody>
@@ -148,10 +144,10 @@ export default function AttendancePage() {
                   const hoursWorked =
                     record.checkIn && record.checkOut
                       ? (
-                          (new Date(`2024-01-01 ${record.checkOut}`).getTime() -
-                            new Date(`2024-01-01 ${record.checkIn}`).getTime()) /
-                          (1000 * 60 * 60)
-                        ).toFixed(1)
+                        (new Date(`2024-01-01 ${record.checkOut}`).getTime() -
+                          new Date(`2024-01-01 ${record.checkIn}`).getTime()) /
+                        (1000 * 60 * 60)
+                      ).toFixed(1)
                       : '—'
 
                   return (
@@ -170,7 +166,7 @@ export default function AttendancePage() {
                           {record.status === 'half-day'
                             ? 'Half Day'
                             : record.status.charAt(0).toUpperCase() +
-                              record.status.slice(1)}
+                            record.status.slice(1)}
                         </div>
                       </td>
                       <td className="px-6 py-3 text-muted-foreground text-sm">
@@ -184,19 +180,13 @@ export default function AttendancePage() {
                           ? `${hoursWorked}h`
                           : hoursWorked}
                       </td>
-                      {isAdmin && (
-                        <td className="px-6 py-3">
-                          <Button variant="ghost" size="sm">
-                            Edit
-                          </Button>
-                        </td>
-                      )}
+
                     </tr>
                   )
                 })
               ) : (
                 <tr>
-                  <td colSpan={isAdmin ? 6 : 5} className="px-6 py-12 text-center">
+                  <td colSpan={5} className="px-6 py-12 text-center">
                     <p className="text-muted-foreground">No records found</p>
                   </td>
                 </tr>

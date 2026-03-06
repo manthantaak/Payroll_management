@@ -45,7 +45,6 @@ export default function LeaveRequestsPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState({
-    employeeName: '',
     leaveType: '',
     startDate: '',
     endDate: '',
@@ -73,7 +72,6 @@ export default function LeaveRequestsPage() {
 
   const handleAddRequest = async () => {
     if (
-      formData.employeeName &&
       formData.leaveType &&
       formData.startDate &&
       formData.endDate &&
@@ -86,8 +84,8 @@ export default function LeaveRequestsPage() {
         1
 
       const newRequest: Omit<LeaveRequest, 'id'> = {
-        employeeName: formData.employeeName,
-        employeeId: `EMP`, // you can generate on backend or use Firestore auto-id
+        employeeName: user?.name || 'Unknown',
+        employeeId: user?.id || '',
         leaveType: formData.leaveType as
           | 'annual'
           | 'sick'
@@ -102,7 +100,6 @@ export default function LeaveRequestsPage() {
       }
       await add(newRequest as LeaveRequest)
       setFormData({
-        employeeName: '',
         leaveType: '',
         startDate: '',
         endDate: '',
@@ -142,89 +139,88 @@ export default function LeaveRequestsPage() {
             {isAdmin ? 'Manage employee leave applications' : 'View and manage your leave requests'}
           </p>
         </div>
-        {isAdmin && (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-2" />
-              New Request
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Leave Request</DialogTitle>
-              <DialogDescription>
-                Submit a new leave request for processing.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Input
-                placeholder="Employee Name"
-                value={formData.employeeName}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    employeeName: e.target.value,
-                  })
-                }
-              />
-              <select
-                value={formData.leaveType}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    leaveType: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
-              >
-                <option value="">Select Leave Type</option>
-                <option value="annual">Annual Leave</option>
-                <option value="sick">Sick Leave</option>
-                <option value="casual">Casual Leave</option>
-                <option value="maternity">Maternity Leave</option>
-              </select>
-              <Input
-                type="date"
-                value={formData.startDate}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    startDate: e.target.value,
-                  })
-                }
-              />
-              <Input
-                type="date"
-                value={formData.endDate}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    endDate: e.target.value,
-                  })
-                }
-              />
-              <textarea
-                placeholder="Reason for leave"
-                value={formData.reason}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    reason: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
-                rows={3}
-              />
-              <Button
-                onClick={handleAddRequest}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                Submit Request
+        {!isAdmin && (
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                <Plus className="w-4 h-4 mr-2" />
+                New Request
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Request Leave</DialogTitle>
+                <DialogDescription>
+                  Submit a new leave request for approval.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="px-3 py-2 border border-input rounded-md bg-muted text-foreground text-sm">
+                  Requesting as: <span className="font-medium">{user?.name}</span>
+                </div>
+                <select
+                  value={formData.leaveType}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      leaveType: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
+                >
+                  <option value="">Select Leave Type</option>
+                  <option value="annual">Annual Leave</option>
+                  <option value="sick">Sick Leave</option>
+                  <option value="casual">Casual Leave</option>
+                  <option value="maternity">Maternity Leave</option>
+                </select>
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-1">Start Date</label>
+                  <Input
+                    type="date"
+                    value={formData.startDate}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        startDate: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-1">End Date</label>
+                  <Input
+                    type="date"
+                    value={formData.endDate}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        endDate: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <textarea
+                  placeholder="Reason for leave"
+                  value={formData.reason}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      reason: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
+                  rows={3}
+                />
+                <Button
+                  onClick={handleAddRequest}
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  Submit Request
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
 
@@ -252,27 +248,27 @@ export default function LeaveRequestsPage() {
 
       {/* Filters */}
       {isAdmin && (
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search employee or reason..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search employee or reason..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-4 py-2 border border-input rounded-md bg-background text-foreground"
+          >
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-4 py-2 border border-input rounded-md bg-background text-foreground"
-        >
-          <option value="all">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
       )}
 
       {/* Requests List */}
@@ -300,9 +296,9 @@ export default function LeaveRequestsPage() {
                   Status
                 </th>
                 {isAdmin && (
-                <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                  Actions
-                </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    Actions
+                  </th>
                 )}
               </tr>
             </thead>
@@ -343,30 +339,30 @@ export default function LeaveRequestsPage() {
                       </span>
                     </td>
                     {isAdmin && (
-                    <td className="px-6 py-3">
-                      {request.status === 'pending' ? (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprove(request.id)}
-                            className="bg-green-500/20 text-green-500 hover:bg-green-500/30"
-                          >
-                            <Check className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleReject(request.id)}
-                            className="bg-red-500/20 text-red-500 hover:bg-red-500/30"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          No action
-                        </span>
-                      )}
-                    </td>
+                      <td className="px-6 py-3">
+                        {request.status === 'pending' ? (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleApprove(request.id)}
+                              className="bg-green-500/20 text-green-500 hover:bg-green-500/30"
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleReject(request.id)}
+                              className="bg-red-500/20 text-red-500 hover:bg-red-500/30"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            No action
+                          </span>
+                        )}
+                      </td>
                     )}
                   </tr>
                 ))

@@ -46,6 +46,8 @@ export default function EmployeesPage() {
     position: '',
     department: '',
     salary: '',
+    accountNumber: '',
+    ifscCode: '',
   })
 
   const filteredEmployees = employees.filter(
@@ -62,7 +64,9 @@ export default function EmployeesPage() {
       !formData.password ||
       !formData.position ||
       !formData.department ||
-      !formData.salary
+      !formData.salary ||
+      !formData.accountNumber ||
+      !formData.ifscCode
     ) {
       setFormError('All fields are required.')
       return
@@ -98,6 +102,8 @@ export default function EmployeesPage() {
         position: '',
         department: '',
         salary: '',
+        accountNumber: '',
+        ifscCode: '',
       })
       // Auto-close after a short delay
       setTimeout(() => {
@@ -194,6 +200,20 @@ export default function EmployeesPage() {
                 value={formData.salary}
                 onChange={(e) =>
                   setFormData({ ...formData, salary: e.target.value })
+                }
+              />
+              <Input
+                placeholder="Bank Account Number"
+                value={formData.accountNumber}
+                onChange={(e) =>
+                  setFormData({ ...formData, accountNumber: e.target.value })
+                }
+              />
+              <Input
+                placeholder="IFSC Code"
+                value={formData.ifscCode}
+                onChange={(e) =>
+                  setFormData({ ...formData, ifscCode: e.target.value.toUpperCase() })
                 }
               />
               <Button

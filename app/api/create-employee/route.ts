@@ -4,10 +4,10 @@ import { adminAuth, adminDb } from '@/lib/firebaseAdmin'
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json()
-        const { name, email, password, position, department, salary } = body
+        const { name, email, password, position, department, salary, accountNumber, ifscCode } = body
 
         // Validate required fields
-        if (!name || !email || !password || !position || !department || !salary) {
+        if (!name || !email || !password || !position || !department || !salary || !accountNumber || !ifscCode) {
             return NextResponse.json(
                 { error: 'All fields are required.' },
                 { status: 400 }
@@ -57,6 +57,8 @@ export async function POST(req: NextRequest) {
             position,
             department,
             salary: parseInt(salary, 10),
+            accountNumber,
+            ifscCode,
             joinDate: new Date().toISOString().split('T')[0],
             status: 'active',
         })
