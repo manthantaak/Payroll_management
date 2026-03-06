@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { AlertCircle, Download, Plus, Send } from 'lucide-react'
+import { AlertCircle, Download, Loader2, Plus, Send } from 'lucide-react'
 import { useFirestoreCollection } from '@/lib/useFirestoreCollection'
 import { generatePayslipPdf } from '@/lib/generatePayslipPdf'
 
@@ -19,6 +19,7 @@ interface PayrollRecord {
   id: string
   employeeId: string
   employeeName: string
+  employeeDepartment: string
   month: string
   baseSalary: number
   allowances: number
@@ -28,33 +29,48 @@ interface PayrollRecord {
   processedDate?: string
 }
 
+interface Employee {
+  id: string
+  name: string
+  email: string
+  position: string
+  department: string
+  salary: number
+  joinDate: string
+  status: 'active' | 'inactive'
+}
 
-const months = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-]
+interface Payslip {
+  employeeId: string
+  employeeName: string
+  month: string
+  year: number
+  baseSalary: number
+  allowances: number
+  deductions: number
+  netSalary: number
+  generatedDate: string
+}
 
 const currentDate = new Date()
 const currentMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
 
 export default function PayrollPage() {
-  const { items: payroll, add, update } = useFirestoreCollection<PayrollRecord>('payroll')
+  const { items: payroll, add: addPayroll, update: updatePayroll } = useFirestoreCollection<PayrollRecord>('payroll')
+  const { items: employees } = useFirestoreCollection<Employee>('employees')
+  const { add: addPayslip } = useFirestoreCollection<Payslip>('payslips')
   const [selectedMonth, setSelectedMonth] = useState(currentMonth)
   const [isGenerateOpen, setIsGenerateOpen] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [isSending, setIsSending] = useState(false)
 
-  const filteredPayroll = payroll.filter((record) =>
-    record.month.startsWith(selectedMonth)
-  )
+  // Deduplicate by id to handle any legacy duplicate records
+  const filteredPayroll = payroll
+    .filter((record) => record.month.startsWith(selectedMonth))
+    .filter((record, index, self) => self.findIndex((r) => r.id === record.id) === index)
+
+  const pendingRecords = filteredPayroll.filter((r) => r.status === 'pending')
+  const hasPendingRecords = pendingRecords.length > 0
 
   const totalStats = {
     baseSalary: filteredPayroll.reduce((sum, r) => sum + r.baseSalary, 0),
@@ -64,24 +80,96 @@ export default function PayrollPage() {
   }
 
   const handleGeneratePayroll = async () => {
-    // generate entries based on selected month
-    const newRecords = payroll.map((record) => ({
-      ...record,
-      month: selectedMonth,
-      status: 'processed' as const,
-      processedDate: new Date().toISOString().split('T')[0],
-    }))
-    // batch write
-    for (const rec of newRecords) {
-      await add(rec as PayrollRecord)
+    setIsGenerating(true)
+    try {
+      // Get only active employees
+      const activeEmployees = employees.filter((emp) => emp.status === 'active')
+
+      if (activeEmployees.length === 0) {
+        alert('No active employees found to generate payroll for.')
+        setIsGenerating(false)
+        return
+      }
+
+      // Check if payroll already exists for this month
+      const existingForMonth = payroll.filter((r) => r.month === selectedMonth)
+      if (existingForMonth.length > 0) {
+        alert('Payroll has already been generated for this month.')
+        setIsGenerating(false)
+        setIsGenerateOpen(false)
+        return
+      }
+
+      // Generate payroll entries from employees with status 'pending'
+      for (const emp of activeEmployees) {
+        const baseSalary = emp.salary || 0
+        const allowances = Math.round(baseSalary * 0.2) // 20% allowances
+        const deductions = Math.round(baseSalary * 0.1) // 10% deductions
+        const netSalary = baseSalary + allowances - deductions
+
+        const payrollEntry: Omit<PayrollRecord, 'id'> = {
+          employeeId: emp.id,
+          employeeName: emp.name,
+          employeeDepartment: emp.department || '',
+          month: selectedMonth,
+          baseSalary,
+          allowances,
+          deductions,
+          netSalary,
+          status: 'pending',
+          processedDate: new Date().toISOString().split('T')[0],
+        }
+
+        await addPayroll(payrollEntry as PayrollRecord)
+      }
+
+      setIsGenerateOpen(false)
+    } catch (error) {
+      console.error('Error generating payroll:', error)
+      alert('Failed to generate payroll. Please try again.')
+    } finally {
+      setIsGenerating(false)
     }
-    setIsGenerateOpen(false)
   }
 
   const handleSendPayroll = async () => {
-    // mark filtered records as paid
-    for (const rec of filteredPayroll) {
-      await update(rec.id, { status: 'paid' })
+    if (!hasPendingRecords) {
+      alert('No pending payroll records to send for this month.')
+      return
+    }
+
+    setIsSending(true)
+    try {
+      // Process each pending payroll record
+      for (const rec of pendingRecords) {
+        // 1. Update payroll status to 'paid'
+        await updatePayroll(rec.id, { status: 'paid' })
+
+        // 2. Create a payslip entry for the employee so they can view it
+        const monthName = new Date(`${rec.month}-01`).toLocaleString('default', { month: 'long' })
+        const year = parseInt(rec.month.split('-')[0], 10)
+
+        const payslipEntry: Omit<Payslip, 'id'> = {
+          employeeId: rec.employeeId,
+          employeeName: rec.employeeName,
+          month: monthName,
+          year,
+          baseSalary: rec.baseSalary,
+          allowances: rec.allowances,
+          deductions: rec.deductions,
+          netSalary: rec.netSalary,
+          generatedDate: new Date().toISOString(),
+        }
+
+        await addPayslip(payslipEntry as Payslip)
+      }
+
+      alert('Payroll sent successfully! Payslips have been created for all employees.')
+    } catch (error) {
+      console.error('Error sending payroll:', error)
+      alert('Failed to send payroll. Please try again.')
+    } finally {
+      setIsSending(false)
     }
   }
 
@@ -140,22 +228,44 @@ export default function PayrollPage() {
                   <div className="flex gap-2">
                     <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
                     <p className="text-sm text-amber-500">
-                      This will generate payroll for all active employees
+                      This will generate payroll for all {employees.filter(e => e.status === 'active').length} active employees with status &quot;Pending&quot;
                     </p>
                   </div>
                 </div>
                 <Button
                   onClick={handleGeneratePayroll}
+                  disabled={isGenerating}
                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                 >
-                  Generate
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    'Generate'
+                  )}
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" onClick={handleSendPayroll}>
-            <Send className="w-4 h-4 mr-2" />
-            Send Payroll
+          <Button
+            variant="outline"
+            onClick={handleSendPayroll}
+            disabled={!hasPendingRecords || isSending}
+            title={!hasPendingRecords ? 'No pending payroll records to send' : 'Send payroll and create payslips for employees'}
+          >
+            {isSending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4 mr-2" />
+                Send Payroll {hasPendingRecords && `(${pendingRecords.length})`}
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -234,9 +344,9 @@ export default function PayrollPage() {
             </thead>
             <tbody>
               {filteredPayroll.length > 0 ? (
-                filteredPayroll.map((record) => (
+                filteredPayroll.map((record, index) => (
                   <tr
-                    key={record.id}
+                    key={`${record.id}-${index}`}
                     className="border-b border-border hover:bg-background/50 transition-colors"
                   >
                     <td className="px-6 py-3 text-foreground font-medium">
